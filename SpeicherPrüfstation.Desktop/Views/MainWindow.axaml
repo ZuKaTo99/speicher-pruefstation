@@ -15,10 +15,23 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}"
-               FontSize="28"
-               FontWeight="SemiBold"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center" />
+    <StackPanel HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="16">
 
+        <TextBlock Text="{Binding Greeting}"
+                   FontSize="28"
+                   FontWeight="SemiBold"
+                   HorizontalAlignment="Center" />
+
+        <TextBlock Text="{Binding StatusMessage}"
+                   HorizontalAlignment="Center"
+                   Opacity="0.75" />
+
+        <Button Content="Status testen"
+                Command="{Binding TestStatusCommand}"
+                HorizontalAlignment="Center"
+                Padding="18,8" />
+
+    </StackPanel>
 </Window>
