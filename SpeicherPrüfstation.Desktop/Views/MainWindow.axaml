@@ -1,37 +1,83 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:SpeicherPrüfstation.Desktop.ViewModels"
+        xmlns:models="using:SpeicherPrüfstation.Desktop.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d"
+        d:DesignWidth="800"
+        d:DesignHeight="450"
         x:Class="SpeicherPrüfstation.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="SpeicherPrüfstation.Desktop">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <StackPanel HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Spacing="16">
+    <Border Margin="32"
+            MaxWidth="680"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Center">
 
-        <TextBlock Text="{Binding Greeting}"
-                   FontSize="28"
-                   FontWeight="SemiBold"
-                   HorizontalAlignment="Center" />
+        <StackPanel Spacing="16">
 
-        <TextBlock Text="{Binding StatusMessage}"
-                   HorizontalAlignment="Center"
-                   Opacity="0.75" />
+            <TextBlock Text="{Binding Greeting}"
+                       FontSize="28"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center" />
 
-        <Button Content="Status testen"
-                Command="{Binding TestStatusCommand}"
-                HorizontalAlignment="Center"
-                Padding="18,8" />
+            <TextBlock Text="USB-Sticks und externe Laufwerke kontrolliert untersuchen"
+                       HorizontalAlignment="Center"
+                       Opacity="0.75" />
 
-    </StackPanel>
+            <TextBlock Text="Externes USB-Speichergerät"
+                       FontWeight="SemiBold"
+                       Margin="0,12,0,0" />
+
+            <ComboBox ItemsSource="{Binding StorageDevices}"
+                      SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+                      HorizontalAlignment="Stretch"
+                      MinHeight="42">
+
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:StorageDevice">
+                        <StackPanel Margin="4">
+
+                            <TextBlock Text="{Binding DevicePath}"
+                                       FontWeight="SemiBold" />
+
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="6">
+
+                                <TextBlock Text="{Binding Vendor}"
+                                           Opacity="0.75" />
+
+                                <TextBlock Text="{Binding Model}"
+                                           Opacity="0.75" />
+
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <Button Content="Geräte aktualisieren"
+                    Command="{Binding RefreshDevicesCommand}"
+                    HorizontalAlignment="Center"
+                    Padding="18,8" />
+
+            <ProgressBar IsIndeterminate="True"
+                         IsVisible="{Binding IsRefreshingDevices}"
+                         Height="4" />
+
+            <TextBlock Text="{Binding StatusMessage}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Opacity="0.75" />
+
+        </StackPanel>
+    </Border>
 </Window>
