@@ -18,159 +18,158 @@
     <Border Margin="32"
             MaxWidth="680"
             HorizontalAlignment="Stretch"
-            VerticalAlignment="Center">
+            VerticalAlignment="Stretch">
 
-        <StackPanel Spacing="16">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
 
-            <TextBlock Text="{Binding Greeting}"
-                       FontSize="28"
-                       FontWeight="SemiBold"
-                       HorizontalAlignment="Center" />
+            <StackPanel Spacing="16">
 
-            <TextBlock Text="USB-Sticks und externe Laufwerke kontrolliert untersuchen"
-                       HorizontalAlignment="Center"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"
-                       Opacity="0.75" />
+                <TextBlock Text="{Binding Greeting}"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center" />
 
-            <TextBlock Text="Externes USB-Speichergerät"
-                       FontWeight="SemiBold"
-                       Margin="0,12,0,0" />
+                <TextBlock Text="USB-Sticks und externe Laufwerke kontrolliert untersuchen"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           Opacity="0.75" />
 
-            <ComboBox ItemsSource="{Binding StorageDevices}"
-                      SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
-                      HorizontalAlignment="Stretch"
-                      MinHeight="42">
+                <TextBlock Text="Externes USB-Speichergerät"
+                           FontWeight="SemiBold"
+                           Margin="0,12,0,0" />
 
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:StorageDeviceViewModel">
-                        <StackPanel Margin="4">
+                <ComboBox ItemsSource="{Binding StorageDevices}"
+                          SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch"
+                          MinHeight="42">
 
-                            <TextBlock Text="{Binding DevicePath}"
-                                       FontWeight="SemiBold" />
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:StorageDeviceViewModel">
+                            <StackPanel Margin="4">
 
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="6">
+                                <TextBlock Text="{Binding DevicePath}"
+                                           FontWeight="SemiBold" />
 
-                                <TextBlock Text="{Binding DisplayName}"
-                                           Opacity="0.75" />
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="6">
 
-                                <TextBlock Text="·"
-                                           Opacity="0.5" />
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               Opacity="0.75" />
 
-                                <TextBlock Text="{Binding SizeText}"
-                                           Opacity="0.75" />
+                                    <TextBlock Text="·"
+                                               Opacity="0.5" />
 
+                                    <TextBlock Text="{Binding SizeText}"
+                                               Opacity="0.75" />
+
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
 
-            <Button Content="Geräte aktualisieren"
-                    Command="{Binding RefreshDevicesCommand}"
-                    HorizontalAlignment="Center"
-                    Padding="18,8" />
+                <Button Content="Geräte aktualisieren"
+                        Command="{Binding RefreshDevicesCommand}"
+                        HorizontalAlignment="Center"
+                        Padding="18,8" />
 
-            <ProgressBar IsIndeterminate="True"
-                         IsVisible="{Binding IsRefreshingDevices}"
-                         Height="4" />
+                <ProgressBar IsIndeterminate="True"
+                             IsVisible="{Binding IsRefreshingDevices}"
+                             Height="4" />
 
-            <TextBlock Text="{Binding StatusMessage}"
-                       HorizontalAlignment="Center"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"
-                       Opacity="0.75" />
+                <TextBlock Text="{Binding StatusMessage}"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           Opacity="0.75" />
 
-            <ContentControl Content="{Binding SelectedDevice}">
-                <ContentControl.ContentTemplate>
-                    <DataTemplate x:DataType="vm:StorageDeviceViewModel">
+                <ContentControl Content="{Binding SelectedDevice}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate x:DataType="vm:StorageDeviceViewModel">
 
-                        <Border Padding="16"
-                                Margin="0,8,0,0"
-                                BorderBrush="#505050"
-                                BorderThickness="1"
-                                CornerRadius="8">
+                            <Border Padding="16"
+                                    Margin="0,8,0,0"
+                                    BorderBrush="#505050"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
 
-                            <StackPanel Spacing="12">
+                                <StackPanel Spacing="12">
 
-                                <TextBlock Text="Gerätedetails"
-                                           FontSize="18"
-                                           FontWeight="SemiBold" />
+                                    <TextBlock Text="Gerätedetails"
+                                               FontSize="18"
+                                               FontWeight="SemiBold" />
 
-                                <Grid ColumnDefinitions="Auto,*"
-                                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                                      ColumnSpacing="18"
-                                      RowSpacing="8">
+                                    <Grid ColumnDefinitions="Auto,*"
+                                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                                          ColumnSpacing="18"
+                                          RowSpacing="8">
 
-                                    <TextBlock Grid.Row="0"
-                                               Grid.Column="0"
-                                               Text="Gerät:"
-                                               Opacity="0.65" />
+                                        <TextBlock Grid.Row="0"
+                                                   Grid.Column="0"
+                                                   Text="Gerät:"
+                                                   Opacity="0.65" />
 
-                                    <TextBlock Grid.Row="0"
-                                               Grid.Column="1"
-                                               Text="{Binding DisplayName}"
-                                               TextWrapping="Wrap" />
+                                        <TextBlock Grid.Row="0"
+                                                   Grid.Column="1"
+                                                   Text="{Binding DisplayName}"
+                                                   TextWrapping="Wrap" />
 
-                                    <TextBlock Grid.Row="1"
-                                               Grid.Column="0"
-                                               Text="Gerätepfad:"
-                                               Opacity="0.65" />
+                                        <TextBlock Grid.Row="1"
+                                                   Grid.Column="0"
+                                                   Text="Gerätepfad:"
+                                                   Opacity="0.65" />
 
-                                    <TextBlock Grid.Row="1"
-                                               Grid.Column="1"
-                                               Text="{Binding DevicePath}" />
+                                        <TextBlock Grid.Row="1"
+                                                   Grid.Column="1"
+                                                   Text="{Binding DevicePath}" />
 
-                                    <TextBlock Grid.Row="2"
-                                               Grid.Column="0"
-                                               Text="Kapazität:"
-                                               Opacity="0.65" />
+                                        <TextBlock Grid.Row="2"
+                                                   Grid.Column="0"
+                                                   Text="Kapazität:"
+                                                   Opacity="0.65" />
 
-                                    <TextBlock Grid.Row="2"
-                                               Grid.Column="1"
-                                               Text="{Binding SizeText}" />
+                                        <TextBlock Grid.Row="2"
+                                                   Grid.Column="1"
+                                                   Text="{Binding SizeText}" />
 
-                                    <TextBlock Grid.Row="3"
-                                               Grid.Column="0"
-                                               Text="Verbindung:"
-                                               Opacity="0.65" />
+                                        <TextBlock Grid.Row="3"
+                                                   Grid.Column="0"
+                                                   Text="Verbindung:"
+                                                   Opacity="0.65" />
 
-                                    <TextBlock Grid.Row="3"
-                                               Grid.Column="1"
-                                               Text="{Binding TransportText}" />
+                                        <TextBlock Grid.Row="3"
+                                                   Grid.Column="1"
+                                                   Text="{Binding TransportText}" />
 
-                                    <TextBlock Grid.Row="4"
-                                               Grid.Column="0"
-                                               Text="Zugriff:"
-                                               Opacity="0.65" />
+                                        <TextBlock Grid.Row="4"
+                                                   Grid.Column="0"
+                                                   Text="Zugriff:"
+                                                   Opacity="0.65" />
 
-                                    <TextBlock Grid.Row="4"
-                                               Grid.Column="1"
-                                               Text="{Binding AccessText}" />
+                                        <TextBlock Grid.Row="4"
+                                                   Grid.Column="1"
+                                                   Text="{Binding AccessText}" />
 
-                                    <TextBlock Grid.Row="5"
-                                               Grid.Column="0"
-                                               Text="Partitionen:"
-                                               Opacity="0.65" />
+                                        <TextBlock Grid.Row="5"
+                                                   Grid.Column="0"
+                                                   Text="Partitionen:"
+                                                   Opacity="0.65" />
 
-                                    <TextBlock Grid.Row="5"
-                                               Grid.Column="1"
-                                               Text="{Binding VolumeCountText}" />
+                                        <TextBlock Grid.Row="5"
+                                                   Grid.Column="1"
+                                                   Text="{Binding VolumeCountText}" />
 
-                                </Grid>
+                                    </Grid>
 
-                                <Border Height="1"
-                                        Margin="0,4"
-                                        Background="#505050" />
+                                    <Border Height="1"
+                                            Margin="0,4"
+                                            Background="#505050" />
 
-                                <TextBlock Text="Erkannte Partitionen"
-                                           FontSize="16"
-                                           FontWeight="SemiBold" />
-
-                                <ScrollViewer MaxHeight="240"
-                                              HorizontalScrollBarVisibility="Disabled"
-                                              VerticalScrollBarVisibility="Auto">
+                                    <TextBlock Text="Erkannte Partitionen"
+                                               FontSize="16"
+                                               FontWeight="SemiBold" />
 
                                     <ItemsControl ItemsSource="{Binding Volumes}">
                                         <ItemsControl.ItemTemplate>
@@ -245,13 +244,133 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ContentControl.ContentTemplate>
-            </ContentControl>
 
-        </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+
+                <Button Content="SMART-Hardwarestatus prüfen"
+                        Command="{Binding CheckSmartHealthCommand}"
+                        HorizontalAlignment="Center"
+                        Padding="18,8"
+                        Margin="0,4,0,0" />
+
+                <ProgressBar IsIndeterminate="True"
+                             IsVisible="{Binding IsCheckingSmartHealth}"
+                             Height="4" />
+
+                <ContentControl Content="{Binding SmartHealth}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate x:DataType="vm:SmartHealthResultViewModel">
+
+                            <Border Padding="16"
+                                    BorderBrush="#505050"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+
+                                <StackPanel Spacing="12">
+
+                                    <TextBlock Text="SMART-Hardwarestatus"
+                                               FontSize="18"
+                                               FontWeight="SemiBold" />
+
+                                    <TextBlock Text="{Binding HealthText}"
+                                               FontSize="20"
+                                               FontWeight="SemiBold" />
+
+                                    <TextBlock Text="{Binding SummaryText}"
+                                               TextWrapping="Wrap"
+                                               Opacity="0.8" />
+
+                                    <Grid ColumnDefinitions="Auto,*"
+                                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                          ColumnSpacing="18"
+                                          RowSpacing="8">
+
+                                        <TextBlock Grid.Row="0"
+                                                   Grid.Column="0"
+                                                   Text="Modell:"
+                                                   Opacity="0.65" />
+
+                                        <TextBlock Grid.Row="0"
+                                                   Grid.Column="1"
+                                                   Text="{Binding ModelText}"
+                                                   TextWrapping="Wrap" />
+
+                                        <TextBlock Grid.Row="1"
+                                                   Grid.Column="0"
+                                                   Text="Seriennummer:"
+                                                   Opacity="0.65" />
+
+                                        <TextBlock Grid.Row="1"
+                                                   Grid.Column="1"
+                                                   Text="{Binding SerialNumberText}"
+                                                   TextWrapping="Wrap" />
+
+                                        <TextBlock Grid.Row="2"
+                                                   Grid.Column="0"
+                                                   Text="Kapazität:"
+                                                   Opacity="0.65" />
+
+                                        <TextBlock Grid.Row="2"
+                                                   Grid.Column="1"
+                                                   Text="{Binding CapacityText}" />
+
+                                        <TextBlock Grid.Row="3"
+                                                   Grid.Column="0"
+                                                   Text="Blockgröße:"
+                                                   Opacity="0.65" />
+
+                                        <TextBlock Grid.Row="3"
+                                                   Grid.Column="1"
+                                                   Text="{Binding LogicalBlockSizeText}" />
+
+                                        <TextBlock Grid.Row="4"
+                                                   Grid.Column="0"
+                                                   Text="Schnittstelle:"
+                                                   Opacity="0.65" />
+
+                                        <TextBlock Grid.Row="4"
+                                                   Grid.Column="1"
+                                                   Text="{Binding DeviceTypeText}" />
+
+                                        <TextBlock Grid.Row="5"
+                                                   Grid.Column="0"
+                                                   Text="SMART verfügbar:"
+                                                   Opacity="0.65" />
+
+                                        <TextBlock Grid.Row="5"
+                                                   Grid.Column="1"
+                                                   Text="{Binding SmartAvailableText}" />
+
+                                        <TextBlock Grid.Row="6"
+                                                   Grid.Column="0"
+                                                   Text="SMART aktiviert:"
+                                                   Opacity="0.65" />
+
+                                        <TextBlock Grid.Row="6"
+                                                   Grid.Column="1"
+                                                   Text="{Binding SmartEnabledText}" />
+
+                                        <TextBlock Grid.Row="7"
+                                                   Grid.Column="0"
+                                                   Text="Temperatur:"
+                                                   Opacity="0.65" />
+
+                                        <TextBlock Grid.Row="7"
+                                                   Grid.Column="1"
+                                                   Text="{Binding TemperatureText}" />
+
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+
+            </StackPanel>
+        </ScrollViewer>
     </Border>
 </Window>
