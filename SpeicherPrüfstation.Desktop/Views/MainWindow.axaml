@@ -29,6 +29,8 @@
 
             <TextBlock Text="USB-Sticks und externe Laufwerke kontrolliert untersuchen"
                        HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
                        Opacity="0.75" />
 
             <TextBlock Text="Externes USB-Speichergerät"
@@ -79,6 +81,176 @@
                        TextAlignment="Center"
                        TextWrapping="Wrap"
                        Opacity="0.75" />
+
+            <ContentControl Content="{Binding SelectedDevice}">
+                <ContentControl.ContentTemplate>
+                    <DataTemplate x:DataType="vm:StorageDeviceViewModel">
+
+                        <Border Padding="16"
+                                Margin="0,8,0,0"
+                                BorderBrush="#505050"
+                                BorderThickness="1"
+                                CornerRadius="8">
+
+                            <StackPanel Spacing="12">
+
+                                <TextBlock Text="Gerätedetails"
+                                           FontSize="18"
+                                           FontWeight="SemiBold" />
+
+                                <Grid ColumnDefinitions="Auto,*"
+                                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                                      ColumnSpacing="18"
+                                      RowSpacing="8">
+
+                                    <TextBlock Grid.Row="0"
+                                               Grid.Column="0"
+                                               Text="Gerät:"
+                                               Opacity="0.65" />
+
+                                    <TextBlock Grid.Row="0"
+                                               Grid.Column="1"
+                                               Text="{Binding DisplayName}"
+                                               TextWrapping="Wrap" />
+
+                                    <TextBlock Grid.Row="1"
+                                               Grid.Column="0"
+                                               Text="Gerätepfad:"
+                                               Opacity="0.65" />
+
+                                    <TextBlock Grid.Row="1"
+                                               Grid.Column="1"
+                                               Text="{Binding DevicePath}" />
+
+                                    <TextBlock Grid.Row="2"
+                                               Grid.Column="0"
+                                               Text="Kapazität:"
+                                               Opacity="0.65" />
+
+                                    <TextBlock Grid.Row="2"
+                                               Grid.Column="1"
+                                               Text="{Binding SizeText}" />
+
+                                    <TextBlock Grid.Row="3"
+                                               Grid.Column="0"
+                                               Text="Verbindung:"
+                                               Opacity="0.65" />
+
+                                    <TextBlock Grid.Row="3"
+                                               Grid.Column="1"
+                                               Text="{Binding TransportText}" />
+
+                                    <TextBlock Grid.Row="4"
+                                               Grid.Column="0"
+                                               Text="Zugriff:"
+                                               Opacity="0.65" />
+
+                                    <TextBlock Grid.Row="4"
+                                               Grid.Column="1"
+                                               Text="{Binding AccessText}" />
+
+                                    <TextBlock Grid.Row="5"
+                                               Grid.Column="0"
+                                               Text="Partitionen:"
+                                               Opacity="0.65" />
+
+                                    <TextBlock Grid.Row="5"
+                                               Grid.Column="1"
+                                               Text="{Binding VolumeCountText}" />
+
+                                </Grid>
+
+                                <Border Height="1"
+                                        Margin="0,4"
+                                        Background="#505050" />
+
+                                <TextBlock Text="Erkannte Partitionen"
+                                           FontSize="16"
+                                           FontWeight="SemiBold" />
+
+                                <ScrollViewer MaxHeight="240"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+
+                                    <ItemsControl ItemsSource="{Binding Volumes}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:StorageVolumeViewModel">
+
+                                                <Border Padding="12"
+                                                        Margin="0,0,0,8"
+                                                        BorderBrush="#3F3F3F"
+                                                        BorderThickness="1"
+                                                        CornerRadius="6">
+
+                                                    <StackPanel Spacing="8">
+
+                                                        <TextBlock Text="{Binding DevicePath}"
+                                                                   FontWeight="SemiBold" />
+
+                                                        <Grid ColumnDefinitions="Auto,*"
+                                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                                              ColumnSpacing="18"
+                                                              RowSpacing="6">
+
+                                                            <TextBlock Grid.Row="0"
+                                                                       Grid.Column="0"
+                                                                       Text="Größe:"
+                                                                       Opacity="0.65" />
+
+                                                            <TextBlock Grid.Row="0"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding SizeText}" />
+
+                                                            <TextBlock Grid.Row="1"
+                                                                       Grid.Column="0"
+                                                                       Text="Dateisystem:"
+                                                                       Opacity="0.65" />
+
+                                                            <TextBlock Grid.Row="1"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding FileSystemText}" />
+
+                                                            <TextBlock Grid.Row="2"
+                                                                       Grid.Column="0"
+                                                                       Text="Bezeichnung:"
+                                                                       Opacity="0.65" />
+
+                                                            <TextBlock Grid.Row="2"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding LabelText}"
+                                                                       TextWrapping="Wrap" />
+
+                                                            <TextBlock Grid.Row="3"
+                                                                       Grid.Column="0"
+                                                                       Text="Eingehängt:"
+                                                                       Opacity="0.65" />
+
+                                                            <TextBlock Grid.Row="3"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding MountPointText}"
+                                                                       TextWrapping="Wrap" />
+
+                                                            <TextBlock Grid.Row="4"
+                                                                       Grid.Column="0"
+                                                                       Text="Zugriff:"
+                                                                       Opacity="0.65" />
+
+                                                            <TextBlock Grid.Row="4"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding AccessText}" />
+
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
 
         </StackPanel>
     </Border>
