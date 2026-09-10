@@ -28,10 +28,17 @@ public partial class MainViewModel : ViewModelBase
                 nameof(storageDeviceService));
     }
 
-    public ObservableCollection<StorageDevice> StorageDevices { get; } = [];
+    public ObservableCollection<StorageDeviceViewModel> StorageDevices
+    {
+        get;
+    } = [];
 
     [ObservableProperty]
-    public partial StorageDevice? SelectedDevice { get; set; }
+    public partial StorageDeviceViewModel? SelectedDevice
+    {
+        get;
+        set;
+    }
 
     [ObservableProperty]
     public partial bool IsRefreshingDevices { get; set; }
@@ -62,7 +69,8 @@ public partial class MainViewModel : ViewModelBase
 
             foreach (StorageDevice device in devices)
             {
-                StorageDevices.Add(device);
+                StorageDevices.Add(
+                    new StorageDeviceViewModel(device));
             }
 
             SelectedDevice = StorageDevices.Count > 0

@@ -1,7 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:SpeicherPrüfstation.Desktop.ViewModels"
-        xmlns:models="using:SpeicherPrüfstation.Desktop.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -42,7 +41,7 @@
                       MinHeight="42">
 
                 <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="models:StorageDevice">
+                    <DataTemplate x:DataType="vm:StorageDeviceViewModel">
                         <StackPanel Margin="4">
 
                             <TextBlock Text="{Binding DevicePath}"
@@ -51,10 +50,13 @@
                             <StackPanel Orientation="Horizontal"
                                         Spacing="6">
 
-                                <TextBlock Text="{Binding Vendor}"
+                                <TextBlock Text="{Binding DisplayName}"
                                            Opacity="0.75" />
 
-                                <TextBlock Text="{Binding Model}"
+                                <TextBlock Text="·"
+                                           Opacity="0.5" />
+
+                                <TextBlock Text="{Binding SizeText}"
                                            Opacity="0.75" />
 
                             </StackPanel>
