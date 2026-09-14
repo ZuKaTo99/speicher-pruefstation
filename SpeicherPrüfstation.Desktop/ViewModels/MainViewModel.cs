@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -17,6 +18,9 @@ public partial class MainViewModel : ViewModelBase
 
     private readonly ISmartHealthService
         _smartHealthService;
+
+    private readonly IVirusScanService _virusScanService;
+    private long _scanGeneration;
 
     public MainViewModel()
         : this(
@@ -36,6 +40,15 @@ public partial class MainViewModel : ViewModelBase
     public MainViewModel(
         IStorageDeviceService storageDeviceService,
         ISmartHealthService smartHealthService)
+        : this(storageDeviceService, smartHealthService,
+            new LinuxVirusScanService(storageDeviceService))
+    {
+    }
+
+    public MainViewModel(
+        IStorageDeviceService storageDeviceService,
+        ISmartHealthService smartHealthService,
+        IVirusScanService virusScanService)
     {
         _storageDeviceService = storageDeviceService
             ?? throw new ArgumentNullException(
@@ -44,6 +57,9 @@ public partial class MainViewModel : ViewModelBase
         _smartHealthService = smartHealthService
             ?? throw new ArgumentNullException(
                 nameof(smartHealthService));
+
+        _virusScanService = virusScanService
+            ?? throw new ArgumentNullException(nameof(virusScanService));
     }
 
     public ObservableCollection<StorageDeviceViewModel>
@@ -88,10 +104,53 @@ public partial class MainViewModel : ViewModelBase
     public partial string StatusMessage { get; set; } =
         "Bereit.";
 
-    [RelayCommand]
+    [ObservableProperty]
+    public partial bool IsScanning { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsCleaningUp { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasPendingCleanup { get; set; }
+
+    [ObservableProperty]
+    public partial long ScannedFileCount { get; set; }
+
+    [ObservableProperty]
+    public partial long VirusFindingCount { get; set; }
+
+    [ObservableProperty]
+    public partial long VirusErrorCount { get; set; }
+
+    [ObservableProperty]
+    public partial long VirusWarningCount { get; set; }
+
+    [ObservableProperty]
+    public partial string VirusScanStateText { get; set; } = "Noch nicht gestartet";
+
+    [ObservableProperty]
+    public partial string VirusScanSummary { get; set; } =
+        "Zuerst ein USB-Gerät auswählen und den Virenscan starten.";
+
+    [ObservableProperty]
+    public partial string VirusFindingsText { get; set; } = "Noch kein Scanergebnis.";
+
+    [ObservableProperty]
+    public partial string VirusMessagesText { get; set; } = "Noch keine Meldungen.";
+
+    public bool IsBusy => IsRefreshingDevices || IsCheckingSmartHealth
+                          || IsScanning || IsCleaningUp;
+
+    public bool CanSelectDevice => !IsBusy && !HasPendingCleanup;
+    public bool IsVirusWorkActive => IsScanning || IsCleaningUp;
+
+    [RelayCommand(CanExecute = nameof(CanRefreshDevices))]
     private async Task RefreshDevicesAsync(
         CancellationToken cancellationToken)
     {
+        if (!CanRefreshDevices())
+            return;
+
         IsRefreshingDevices = true;
         SmartHealth = null;
 
@@ -153,6 +212,9 @@ public partial class MainViewModel : ViewModelBase
     private async Task CheckSmartHealthAsync(
         CancellationToken cancellationToken)
     {
+        if (!CanCheckSmartHealth())
+            return;
+
         StorageDeviceViewModel? selectedDevice =
             SelectedDevice;
 
@@ -229,25 +291,181 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanStartVirusScan), IncludeCancelCommand = true)]
+    private async Task StartVirusScanAsync(CancellationToken cancellationToken)
+    {
+        if (!CanStartVirusScan() || SelectedDevice is not { } selectedDevice)
+            return;
+
+        ClearVirusResult();
+        long generation = ++_scanGeneration;
+        IsScanning = true;
+        VirusScanStateText = "Scan läuft";
+        var progress = new Progress<VirusScanProgress>(value =>
+        {
+            if (!IsScanning || generation != _scanGeneration)
+                return;
+            StatusMessage = value.Status;
+            VirusScanSummary = value.Status;
+            ScannedFileCount = value.ScannedFiles;
+            VirusFindingCount = value.Findings;
+            VirusErrorCount = value.Errors;
+            VirusWarningCount = value.Warnings;
+        });
+
+        try
+        {
+            VirusScanResult result = await _virusScanService.ScanAsync(
+                selectedDevice.Device, progress, cancellationToken);
+
+            // Bereits eingereihte Fortschrittsmeldungen dürfen das Ergebnis nicht überschreiben.
+            _scanGeneration++;
+            VirusScanStateText = result.State switch
+            {
+                VirusScanState.NoFindings => "Keine Funde",
+                VirusScanState.Findings => "Funde vorhanden",
+                VirusScanState.Incomplete => "Scan unvollständig",
+                VirusScanState.Canceled => "Scan abgebrochen",
+                _ => "Scan fehlgeschlagen"
+            };
+            VirusScanSummary = result.Summary;
+            StatusMessage = result.Summary;
+            ScannedFileCount = result.ScannedFiles;
+            VirusFindingCount = result.Findings.Count;
+            VirusErrorCount = result.ErrorCount;
+            VirusWarningCount = result.Warnings.Count;
+            VirusFindingsText = result.Findings.Count == 0
+                ? "Keine Schadsoftware-Funde gemeldet. Scanstatus beachten."
+                : string.Join("\n\n", result.Findings.Select(finding =>
+                    finding.FilePath + "\nSignatur: " + finding.Signature));
+            string[] messages = result.Errors.Select(value => "Fehler: " + value)
+                .Concat(result.Warnings.Select(value => "Warnung: " + value)).ToArray();
+            VirusMessagesText = messages.Length == 0
+                ? "Keine Warnungen oder Fehler gemeldet."
+                : string.Join("\n\n", messages);
+        }
+        catch (OperationCanceledException)
+        {
+            VirusScanStateText = "Scan abgebrochen";
+            VirusScanSummary = "Der Scan wurde abgebrochen; es liegt kein vollständiges Ergebnis vor.";
+            StatusMessage = VirusScanSummary;
+        }
+        catch (Exception exception)
+        {
+            VirusScanStateText = "Scan fehlgeschlagen";
+            VirusScanSummary = "Der Virenscan konnte nicht abgeschlossen werden.";
+            VirusMessagesText = exception.Message;
+            VirusErrorCount++;
+            StatusMessage = VirusScanSummary;
+        }
+        finally
+        {
+            _scanGeneration++;
+            HasPendingCleanup = _virusScanService.HasPendingMounts;
+            IsScanning = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRetryCleanup))]
+    private async Task RetryCleanupAsync()
+    {
+        if (!CanRetryCleanup())
+            return;
+        IsCleaningUp = true;
+        StatusMessage = "Ausstehendes Aushängen wird erneut geprüft …";
+        try
+        {
+            VirusScanCleanupResult result = await _virusScanService.RetryCleanupAsync();
+            HasPendingCleanup = result.HasPendingMounts;
+            string message = result.HasPendingMounts
+                ? "Das Aushängen ist weiterhin nicht bestätigt. Meldungen beachten."
+                : "Das Aushängen ist jetzt bestätigt. Das bisherige Scanergebnis bleibt unverändert.";
+            VirusScanSummary = message;
+            StatusMessage = message;
+            VirusMessagesText += "\n\nNachkontrolle: " + message;
+            if (result.Messages.Count > 0)
+                VirusMessagesText += "\n" + string.Join("\n", result.Messages);
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = "Das Aushängen konnte nicht bestätigt werden.";
+            VirusMessagesText += "\n\nNachkontrolle: " + exception.Message;
+        }
+        finally
+        {
+            HasPendingCleanup = _virusScanService.HasPendingMounts;
+            IsCleaningUp = false;
+        }
+    }
+
+    public bool RequestWindowClose()
+    {
+        if (IsScanning)
+        {
+            StartVirusScanCommand.Cancel();
+            StatusMessage = "Abbruch angefordert. Bitte das Aufräumen abwarten "
+                + "und das Fenster danach erneut schließen.";
+            return false;
+        }
+        if (IsCleaningUp || HasPendingCleanup)
+        {
+            StatusMessage = "Vor dem Schließen muss das Aushängen bestätigt sein. "
+                + "Bitte die Meldungen zum Virenscan beachten.";
+            return false;
+        }
+        return true;
+    }
+
+    private void ClearVirusResult()
+    {
+        ScannedFileCount = 0;
+        VirusFindingCount = 0;
+        VirusErrorCount = 0;
+        VirusWarningCount = 0;
+        VirusScanStateText = "Noch nicht gestartet";
+        VirusScanSummary = "Zuerst ein USB-Gerät auswählen und den Virenscan starten.";
+        VirusFindingsText = "Noch kein Scanergebnis.";
+        VirusMessagesText = "Noch keine Meldungen.";
+    }
+
+    private bool CanRefreshDevices() => CanSelectDevice;
+    private bool CanStartVirusScan() => CanSelectDevice && SelectedDevice is not null;
+    private bool CanRetryCleanup() => !IsBusy && HasPendingCleanup;
+
     private bool CanCheckSmartHealth()
     {
         return SelectedDevice is not null
-               && !IsCheckingSmartHealth;
+               && CanSelectDevice;
     }
 
     partial void OnSelectedDeviceChanged(
         StorageDeviceViewModel? value)
     {
         SmartHealth = null;
-
-        CheckSmartHealthCommand
-            .NotifyCanExecuteChanged();
+        if (!IsScanning && !HasPendingCleanup)
+            ClearVirusResult();
+        UpdateAvailability();
     }
 
     partial void OnIsCheckingSmartHealthChanged(
         bool value)
     {
-        CheckSmartHealthCommand
-            .NotifyCanExecuteChanged();
+        UpdateAvailability();
+    }
+
+    partial void OnIsRefreshingDevicesChanged(bool value) => UpdateAvailability();
+    partial void OnIsScanningChanged(bool value) => UpdateAvailability();
+    partial void OnIsCleaningUpChanged(bool value) => UpdateAvailability();
+    partial void OnHasPendingCleanupChanged(bool value) => UpdateAvailability();
+
+    private void UpdateAvailability()
+    {
+        OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(CanSelectDevice));
+        OnPropertyChanged(nameof(IsVirusWorkActive));
+        RefreshDevicesCommand.NotifyCanExecuteChanged();
+        CheckSmartHealthCommand.NotifyCanExecuteChanged();
+        StartVirusScanCommand.NotifyCanExecuteChanged();
+        RetryCleanupCommand.NotifyCanExecuteChanged();
     }
 }

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -27,6 +29,11 @@ public sealed class LinuxStorageDeviceService : IStorageDeviceService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+
+        var previousSequences = Directory.EnumerateDirectories("/sys/class/block")
+            .Select(Path.GetFileName)
+            .Where(name => name is not null)
+            .ToDictionary(name => name!, name => ReadDiskSequence(name), StringComparer.Ordinal);
 
         var startInfo = new ProcessStartInfo
         {
@@ -89,7 +96,12 @@ public sealed class LinuxStorageDeviceService : IStorageDeviceService
                 $"lsblk wurde mit Exit-Code {process.ExitCode} beendet: {details}");
         }
 
-        return ParseUsbStorageDevices(standardOutput);
+        return ParseUsbStorageDevices(standardOutput)
+            .Select(device => previousSequences.TryGetValue(device.Name, out ulong? previous)
+                              && previous == device.DiskSequence
+                ? device
+                : device with { DiskSequence = null })
+            .ToArray();
     }
 
     private static IReadOnlyList<StorageDevice> ParseUsbStorageDevices(
@@ -148,6 +160,7 @@ public sealed class LinuxStorageDeviceService : IStorageDeviceService
             IsReadOnly = device.IsReadOnly,
             Model = NormalizeText(device.Model),
             Vendor = NormalizeText(device.Vendor),
+            DiskSequence = ReadDiskSequence(device.Name),
             Volumes = CreateVolumes(device)
         };
     }
@@ -220,6 +233,33 @@ public sealed class LinuxStorageDeviceService : IStorageDeviceService
             Label = NormalizeText(device.Label),
             MountPoints = mountPoints
         };
+    }
+
+    internal static ulong? ReadDiskSequence(string? kernelName)
+    {
+        if (string.IsNullOrWhiteSpace(kernelName)
+            || kernelName.Any(character => !char.IsAsciiLetterOrDigit(character)))
+        {
+            return null;
+        }
+
+        try
+        {
+            string value = File.ReadAllText(
+                $"/sys/class/block/{kernelName}/diskseq").Trim();
+
+            return ulong.TryParse(value, NumberStyles.None,
+                CultureInfo.InvariantCulture, out ulong sequence)
+                ? sequence : null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private static string? NormalizeText(string? value)

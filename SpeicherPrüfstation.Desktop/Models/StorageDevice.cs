@@ -22,5 +22,8 @@ public sealed record StorageDevice
 
     public string? Vendor { get; init; }
 
+    // Ändert sich beim erneuten Anschließen des Kernel-Blockgeräts.
+    public ulong? DiskSequence { get; init; }
+
     public IReadOnlyList<StorageVolume> Volumes { get; init; } = [];
 }
