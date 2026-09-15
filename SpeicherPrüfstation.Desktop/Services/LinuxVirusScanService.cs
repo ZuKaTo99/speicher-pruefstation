@@ -12,7 +12,10 @@ namespace SpeicherPrüfstation.Desktop.Services;
 
 public sealed class LinuxVirusScanService : IVirusScanService
 {
-    private const long MaximumFileSize = 100L * 1024 * 1024;
+    private const int MaximumFileSizeMiB = 512;
+    private const int MaximumScanSizeMiB = 1024;
+    private const long MaximumFileSize = MaximumFileSizeMiB * 1024L * 1024L;
+
     private readonly LinuxScanMountService _mounts;
     private readonly SemaphoreSlim _operation = new(1, 1);
     private volatile bool _hasPendingMounts;
@@ -126,8 +129,9 @@ public sealed class LinuxVirusScanService : IVirusScanService
                             ["--stdout", "--recursive=yes", "--cross-fs=no",
                              "--follow-dir-symlinks=0", "--follow-file-symlinks=0",
                              "--alert-encrypted=yes", "--alert-exceeds-max=yes",
-                             "--fail-if-cvd-older-than=7", "--max-filesize=100M",
-                             "--max-scansize=400M", "--max-files=10000",
+                             "--fail-if-cvd-older-than=7",
+                             $"--max-filesize={MaximumFileSizeMiB}M",
+                             $"--max-scansize={MaximumScanSizeMiB}M", "--max-files=10000",
                              "--max-recursion=32", "--max-dir-recursion=256",
                              "--max-scantime=120000", "--tempdir=" + temporaryDirectory,
                              "--", lease.Target!],
@@ -144,11 +148,12 @@ public sealed class LinuxVirusScanService : IVirusScanService
                             }).ConfigureAwait(false);
 
                         parser.Complete(output.ExitCode);
-                        long reportedFiles = parser.Counts().Files;
-                        if (reportedFiles < preflight.ExpectedFiles)
-                            throw new IOException($"ClamAV meldet {reportedFiles} geprüfte Dateien; "
-                                + $"erwartet wurden mindestens {preflight.ExpectedFiles} "
-                                + "nicht leere Dateien innerhalb des Dateigrößenlimits.");
+                        long accountedFiles = parser.AccountedFiles();
+                        if (accountedFiles < preflight.ExpectedFiles)
+                            throw new IOException($"ClamAV hat nur {accountedFiles} von mindestens "
+                                + $"{preflight.ExpectedFiles} erwarteten nicht leeren Dateien "
+                                + "in der Einzelausgabe berücksichtigt.");
+
                         await _mounts.EnsureSafeMountAsync(lease, token).ConfigureAwait(false);
                     }, cancellationToken).ConfigureAwait(false);
                 }
@@ -343,6 +348,7 @@ public sealed class LinuxVirusScanService : IVirusScanService
         long links = 0;
         long largeFiles = 0;
         long expectedFiles = 0;
+
         while (directories.TryPop(out var directory))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -362,6 +368,7 @@ public sealed class LinuxVirusScanService : IVirusScanService
                     links++;
                     continue;
                 }
+
                 if ((attributes & FileAttributes.Directory) != 0)
                     directories.Push((path, directory.Depth + 1));
                 else
@@ -385,7 +392,9 @@ public sealed class LinuxVirusScanService : IVirusScanService
         if (links > 0)
             warnings.Add($"{links} symbolische Links werden nicht verfolgt.");
         if (largeFiles > 0)
-            warnings.Add($"{largeFiles} Dateien überschreiten das Scanlimit von 100 MiB.");
+            warnings.Add($"{largeFiles} Dateien überschreiten das Scanlimit von "
+                + $"{MaximumFileSizeMiB} MiB.");
+
         return (warnings, expectedFiles);
     }
 }

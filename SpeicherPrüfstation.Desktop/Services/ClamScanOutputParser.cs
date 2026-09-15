@@ -21,7 +21,7 @@ internal sealed class ClamScanOutputParser(string root, string volumePath)
 
     private readonly HashSet<string> _detectedFiles = new(StringComparer.Ordinal);
     private readonly HashSet<string> _malwareFiles = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, int> _maxFileSizeWarnings = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _limitWarnings = new(StringComparer.Ordinal);
 
     private long _observedFiles;
     private long? _summaryFiles;
@@ -78,8 +78,9 @@ internal sealed class ClamScanOutputParser(string root, string volumePath)
                         int warningIndex = _warnings.Count;
                         _warnings.Add($"Nicht vollständig prüfbar: {displayPath} ({signature})");
 
-                        if (signature == "Heuristics.Limits.Exceeded.MaxFileSize")
-                            _maxFileSizeWarnings.TryAdd(file, warningIndex);
+                        if (signature.StartsWith("Heuristics.Limits.Exceeded.",
+                                StringComparison.Ordinal))
+                            _limitWarnings.TryAdd(file, warningIndex);
                     }
                     else
                     {
@@ -143,6 +144,7 @@ internal sealed class ClamScanOutputParser(string root, string volumePath)
                     _summaryErrors = errors;
                     return;
                 }
+
                 foreach (string prefix in new[]
                 {
                     "Known viruses:", "Engine version:", "Scanned directories:",
@@ -203,7 +205,7 @@ internal sealed class ClamScanOutputParser(string root, string volumePath)
 
             // Nur eine vollständig belegte Kombination als Prüflücke einordnen:
             // Exit-Code 2, passende Fehlersumme, für jeden Fehler dieselbe Datei
-            // mit MaxFileSize-Meldung und keine Schadsoftwaremeldung für diese Datei.
+            // mit einer ClamAV-Limitmeldung und keine Schadsoftwaremeldung für diese Datei.
             bool onlyMatchedLimitErrors = exitCode == 2
                                           && hasSummary
                                           && _errors.Count == 0
@@ -228,14 +230,14 @@ internal sealed class ClamScanOutputParser(string root, string volumePath)
                 _normalizedLimitErrors = _scannerErrors.Count;
                 foreach (ScannerError error in _scannerErrors)
                 {
-                    int warningIndex = _maxFileSizeWarnings[error.File!];
+                    int warningIndex = _limitWarnings[error.File!];
                     _warnings[warningIndex] +=
                         " ClamAV meldete dazu zusätzlich: Virus(es) detected ERROR.";
                 }
 
                 _warnings.Add($"ClamAV-Exit-Code 2: Alle {_normalizedLimitErrors} "
                     + "gemeldeten Dateifehler sind den oben aufgeführten "
-                    + "Dateigrößen-Limitmeldungen zugeordnet. Der Scan bleibt unvollständig.");
+                    + "Scanlimit-Meldungen zugeordnet. Der Scan bleibt unvollständig.");
             }
             else
             {
@@ -264,13 +266,19 @@ internal sealed class ClamScanOutputParser(string root, string volumePath)
     private bool IsMatchedLimitError(ScannerError error) =>
         error.IsVirusDetectedError
         && error.File is not null
-        && _maxFileSizeWarnings.ContainsKey(error.File)
+        && _limitWarnings.ContainsKey(error.File)
         && !_malwareFiles.Contains(error.File);
 
     private long CurrentErrorCount() =>
         Math.Max(
             Math.Max(0, _summaryErrors.GetValueOrDefault() - _normalizedLimitErrors),
             _errors.Count + (_completed ? 0 : _scannerErrors.Count));
+
+    internal long AccountedFiles()
+    {
+        lock (_sync)
+            return Math.Max(_summaryFiles ?? 0, _observedFiles);
+    }
 
     internal (long Files, long Findings, long Errors, long Warnings) Counts()
     {
