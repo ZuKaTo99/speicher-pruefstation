@@ -376,7 +376,9 @@
                         BorderBrush="#505050"
                         BorderThickness="1"
                         CornerRadius="8">
+
                     <StackPanel Spacing="12">
+
                         <TextBlock Text="ClamAV-Virenscan"
                                    FontSize="18"
                                    FontWeight="SemiBold" />
@@ -386,14 +388,17 @@
                                    Opacity="0.8" />
 
                         <WrapPanel>
+
                             <Button Content="Virenscan starten"
                                     Command="{Binding StartVirusScanCommand}"
                                     Padding="16,8"
                                     Margin="0,0,8,8" />
+
                             <Button Content="Virenscan abbrechen"
                                     Command="{Binding StartVirusScanCancelCommand}"
                                     Padding="16,8"
                                     Margin="0,0,0,8" />
+
                         </WrapPanel>
 
                         <ProgressBar IsIndeterminate="True"
@@ -403,6 +408,7 @@
                         <TextBlock Text="{Binding VirusScanStateText}"
                                    FontSize="20"
                                    FontWeight="SemiBold" />
+
                         <TextBlock Text="{Binding VirusScanSummary}"
                                    TextWrapping="Wrap" />
 
@@ -410,22 +416,51 @@
                               RowDefinitions="Auto,Auto"
                               ColumnSpacing="16"
                               RowSpacing="12">
-                            <StackPanel Grid.Row="0" Grid.Column="0">
-                                <TextBlock Text="Geprüfte Dateien" Opacity="0.65" />
-                                <TextBlock Text="{Binding ScannedFileCount}" FontSize="20" />
+
+                            <StackPanel Grid.Row="0"
+                                        Grid.Column="0">
+
+                                <TextBlock Text="Geprüfte Dateien"
+                                           Opacity="0.65" />
+
+                                <TextBlock Text="{Binding ScannedFileCount}"
+                                           FontSize="20" />
+
                             </StackPanel>
-                            <StackPanel Grid.Row="0" Grid.Column="1">
-                                <TextBlock Text="Funde" Opacity="0.65" />
-                                <TextBlock Text="{Binding VirusFindingCount}" FontSize="20" />
+
+                            <StackPanel Grid.Row="0"
+                                        Grid.Column="1">
+
+                                <TextBlock Text="Funde"
+                                           Opacity="0.65" />
+
+                                <TextBlock Text="{Binding VirusFindingCount}"
+                                           FontSize="20" />
+
                             </StackPanel>
-                            <StackPanel Grid.Row="1" Grid.Column="0">
-                                <TextBlock Text="Fehler" Opacity="0.65" />
-                                <TextBlock Text="{Binding VirusErrorCount}" FontSize="20" />
+
+                            <StackPanel Grid.Row="1"
+                                        Grid.Column="0">
+
+                                <TextBlock Text="Fehler"
+                                           Opacity="0.65" />
+
+                                <TextBlock Text="{Binding VirusErrorCount}"
+                                           FontSize="20" />
+
                             </StackPanel>
-                            <StackPanel Grid.Row="1" Grid.Column="1">
-                                <TextBlock Text="Warnungen" Opacity="0.65" />
-                                <TextBlock Text="{Binding VirusWarningCount}" FontSize="20" />
+
+                            <StackPanel Grid.Row="1"
+                                        Grid.Column="1">
+
+                                <TextBlock Text="Warnungen"
+                                           Opacity="0.65" />
+
+                                <TextBlock Text="{Binding VirusWarningCount}"
+                                           FontSize="20" />
+
                             </StackPanel>
+
                         </Grid>
 
                         <Border IsVisible="{Binding HasPendingCleanup}"
@@ -433,16 +468,22 @@
                                 BorderBrush="#C89126"
                                 BorderThickness="1"
                                 CornerRadius="6">
+
                             <StackPanel Spacing="8">
+
                                 <TextBlock Text="Das Aushängen ist noch nicht bestätigt. Andere Zugriffe auf das Gerät schließen und erneut versuchen."
                                            TextWrapping="Wrap" />
+
                                 <Button Content="Aushängen erneut versuchen"
                                         Command="{Binding RetryCleanupCommand}"
                                         Padding="12,8" />
+
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="Fundliste" FontWeight="SemiBold" />
+                        <TextBlock Text="Fundliste"
+                                   FontWeight="SemiBold" />
+
                         <TextBox Text="{Binding VirusFindingsText, Mode=OneWay}"
                                  IsReadOnly="True"
                                  AcceptsReturn="True"
@@ -450,7 +491,44 @@
                                  MinHeight="70"
                                  MaxHeight="220" />
 
-                        <TextBlock Text="Warnungen und Fehler" FontWeight="SemiBold" />
+                        <Border Padding="12"
+                                BorderBrush="#505050"
+                                BorderThickness="1"
+                                CornerRadius="6">
+
+                            <StackPanel Spacing="8">
+
+                                <TextBlock Text="Quarantäne"
+                                           FontSize="17"
+                                           FontWeight="SemiBold" />
+
+                                <TextBlock Text="Gefundene Dateien werden verschlüsselt in einen privaten lokalen Ordner kopiert. Die Originaldateien auf dem USB-Gerät bleiben bis zu einer späteren, ausdrücklich bestätigten Löschung unverändert."
+                                           TextWrapping="Wrap"
+                                           Opacity="0.8" />
+
+                                <WrapPanel>
+
+                                    <Button Content="Funde in Quarantäne sichern"
+                                            Command="{Binding QuarantineFindingsCommand}"
+                                            Padding="14,8"
+                                            Margin="0,0,8,8" />
+
+                                    <Button Content="Quarantäne abbrechen"
+                                            Command="{Binding QuarantineFindingsCancelCommand}"
+                                            Padding="14,8"
+                                            Margin="0,0,0,8" />
+
+                                </WrapPanel>
+
+                                <TextBlock Text="{Binding QuarantineStatus}"
+                                           TextWrapping="Wrap" />
+
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Warnungen und Fehler"
+                                   FontWeight="SemiBold" />
+
                         <TextBox Text="{Binding VirusMessagesText, Mode=OneWay}"
                                  IsReadOnly="True"
                                  AcceptsReturn="True"
@@ -462,6 +540,7 @@
                                    TextWrapping="Wrap"
                                    FontSize="12"
                                    Opacity="0.65" />
+
                     </StackPanel>
                 </Border>
 
