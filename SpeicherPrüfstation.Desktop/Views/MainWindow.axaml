@@ -8,7 +8,7 @@
         d:DesignHeight="450"
         x:Class="SpeicherPrüfstation.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/Icon Antivirenprogramm.ico"
         Title="SpeicherPrüfstation.Desktop">
 
     <Design.DataContext>
@@ -521,6 +521,77 @@
                                 </WrapPanel>
 
                                 <TextBlock Text="{Binding QuarantineStatus}"
+                                           TextWrapping="Wrap" />
+
+                            </StackPanel>
+                        </Border>
+
+                        <Border Padding="12"
+                                BorderBrush="#8A3F3F"
+                                BorderThickness="1"
+                                CornerRadius="6">
+
+                            <StackPanel Spacing="8">
+
+                                <TextBlock Text="Schädliche Originaldateien löschen"
+                                           FontSize="17"
+                                           FontWeight="SemiBold" />
+
+                                <TextBlock Text="Nur zuvor erfolgreich und verschlüsselt gesicherte Funddateien können gelöscht werden. Vor jeder Löschung werden Quarantänekopie, Dateigröße und SHA-256-Prüfsumme erneut kontrolliert."
+                                           TextWrapping="Wrap"
+                                           Opacity="0.8" />
+
+                                <WrapPanel>
+
+                                    <Button Content="Löschung vorbereiten"
+                                            Command="{Binding PrepareRemovalCommand}"
+                                            Padding="14,8"
+                                            Margin="0,0,8,8" />
+
+                                    <Button Content="Löschvorgang abbrechen"
+                                            Command="{Binding RemoveFindingsCancelCommand}"
+                                            Padding="14,8"
+                                            Margin="0,0,0,8" />
+
+                                </WrapPanel>
+
+                                <Border IsVisible="{Binding IsRemovalConfirmationVisible}"
+                                        Padding="12"
+                                        BorderBrush="#C44F4F"
+                                        BorderThickness="1"
+                                        CornerRadius="6">
+
+                                    <StackPanel Spacing="10">
+
+                                        <TextBlock Text="Endgültige Bestätigung"
+                                                   FontWeight="SemiBold" />
+
+                                        <TextBlock Text="{Binding MalwareRemovalConfirmationText}"
+                                                   TextWrapping="Wrap" />
+
+                                        <CheckBox IsChecked="{Binding IsRemovalConfirmed, Mode=TwoWay}">
+                                            <TextBlock Text="Ich habe verstanden, dass die bestätigten Originaldateien dauerhaft vom ausgewählten Datenträger gelöscht werden."
+                                                       TextWrapping="Wrap" />
+                                        </CheckBox>
+
+                                        <WrapPanel>
+
+                                            <Button Content="Endgültig löschen"
+                                                    Command="{Binding RemoveFindingsCommand}"
+                                                    Padding="14,8"
+                                                    Margin="0,0,8,8" />
+
+                                            <Button Content="Nicht löschen"
+                                                    Command="{Binding CancelRemovalConfirmationCommand}"
+                                                    Padding="14,8"
+                                                    Margin="0,0,0,8" />
+
+                                        </WrapPanel>
+
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="{Binding MalwareRemovalStatus}"
                                            TextWrapping="Wrap" />
 
                             </StackPanel>

@@ -18,7 +18,7 @@ public sealed class LinuxQuarantineService : IQuarantineService
     private const int EncryptionChunkSize = 1024 * 1024;
     private const int EncryptionKeySize = 32;
     private const int AuthenticationTagSize = 16;
-    private const long RequiredFreeSpaceReserve = 16L * 1024 * 1024;
+    private const long RequiredFreeSpaceReserve = 5L * 1024 * 1024 * 1024;
 
     private static readonly byte[] PayloadMagic = [(byte)'S', (byte)'P', (byte)'Q', (byte)'1'];
 
@@ -83,6 +83,7 @@ public sealed class LinuxQuarantineService : IQuarantineService
 
         string quarantineDirectory = string.Empty;
         byte[]? encryptionKey = null;
+        bool storageGateAcquired = false;
 
         try
         {
@@ -121,6 +122,12 @@ public sealed class LinuxQuarantineService : IQuarantineService
                     Errors = errors.ToArray()
                 };
             }
+
+            await QuarantineStorageGate.Operation
+                .WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            storageGateAcquired = true;
 
             quarantineDirectory =
                 PrepareQuarantineDirectory();
@@ -269,6 +276,11 @@ public sealed class LinuxQuarantineService : IQuarantineService
             {
                 CryptographicOperations.ZeroMemory(
                     encryptionKey);
+            }
+
+            if (storageGateAcquired)
+            {
+                QuarantineStorageGate.Operation.Release();
             }
 
             _hasPendingMounts =
@@ -1147,8 +1159,9 @@ public sealed class LinuxQuarantineService : IQuarantineService
             < requiredSpace)
         {
             throw new IOException(
-                "Für diese Funddatei ist nicht "
-                + "genügend lokaler Speicherplatz frei.");
+                "Für diese Funddatei ist nicht genügend "
+                + "lokaler Speicherplatz frei. Nach dem Sichern "
+                + "müssen mindestens 5 GiB frei bleiben.");
         }
     }
 

@@ -21,13 +21,21 @@ public partial class MainViewModel : ViewModelBase
 
     private readonly IVirusScanService _virusScanService;
     private readonly IQuarantineService _quarantineService;
+    private readonly IMalwareRemovalService
+        _malwareRemovalService;
+
     private long _scanGeneration;
     private long _quarantineGeneration;
+    private long _removalGeneration;
     private VirusScanResult? _lastVirusScanResult;
     private StorageDevice? _lastVirusScanDevice;
 
     private readonly Dictionary<string, QuarantineItemResult>
         _quarantinedItems =
+            new(StringComparer.Ordinal);
+
+    private readonly HashSet<string>
+        _removedOriginalFiles =
             new(StringComparer.Ordinal);
 
     public MainViewModel()
@@ -76,6 +84,22 @@ public partial class MainViewModel : ViewModelBase
         ISmartHealthService smartHealthService,
         IVirusScanService virusScanService,
         IQuarantineService quarantineService)
+        : this(
+            storageDeviceService,
+            smartHealthService,
+            virusScanService,
+            quarantineService,
+            new LinuxMalwareRemovalService(
+                storageDeviceService))
+    {
+    }
+
+    public MainViewModel(
+        IStorageDeviceService storageDeviceService,
+        ISmartHealthService smartHealthService,
+        IVirusScanService virusScanService,
+        IQuarantineService quarantineService,
+        IMalwareRemovalService malwareRemovalService)
     {
         _storageDeviceService =
             storageDeviceService
@@ -96,6 +120,11 @@ public partial class MainViewModel : ViewModelBase
             quarantineService
             ?? throw new ArgumentNullException(
                 nameof(quarantineService));
+
+        _malwareRemovalService =
+            malwareRemovalService
+            ?? throw new ArgumentNullException(
+                nameof(malwareRemovalService));
     }
 
     public ObservableCollection<StorageDeviceViewModel>
@@ -164,6 +193,27 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool IsQuarantining
+    {
+        get;
+        set;
+    }
+
+    [ObservableProperty]
+    public partial bool IsRemovingFindings
+    {
+        get;
+        set;
+    }
+
+    [ObservableProperty]
+    public partial bool IsRemovalConfirmationVisible
+    {
+        get;
+        set;
+    }
+
+    [ObservableProperty]
+    public partial bool IsRemovalConfirmed
     {
         get;
         set;
@@ -242,12 +292,28 @@ public partial class MainViewModel : ViewModelBase
     } =
         "Noch keine Funddatei in Quarantäne gesichert.";
 
+    [ObservableProperty]
+    public partial string MalwareRemovalStatus
+    {
+        get;
+        set;
+    } =
+        "Noch keine Originaldatei gelöscht.";
+
+    [ObservableProperty]
+    public partial string MalwareRemovalConfirmationText
+    {
+        get;
+        set;
+    } = string.Empty;
+
     public bool IsBusy =>
         IsRefreshingDevices
         || IsCheckingSmartHealth
         || IsScanning
         || IsCleaningUp
-        || IsQuarantining;
+        || IsQuarantining
+        || IsRemovingFindings;
 
     public bool CanSelectDevice =>
         !IsBusy
@@ -256,10 +322,14 @@ public partial class MainViewModel : ViewModelBase
     public bool IsVirusWorkActive =>
         IsScanning
         || IsCleaningUp
-        || IsQuarantining;
+        || IsQuarantining
+        || IsRemovingFindings;
 
     public bool HasQuarantinableFindings =>
         RemainingFindings().Count > 0;
+
+    public bool HasRemovableFindings =>
+        RemovableItems().Count > 0;
 
     [RelayCommand(
         CanExecute = nameof(CanRefreshDevices))]
@@ -564,6 +634,17 @@ public partial class MainViewModel : ViewModelBase
                 selectedDevice.Device;
 
             _quarantinedItems.Clear();
+            _removedOriginalFiles.Clear();
+            IsRemovalConfirmationVisible = false;
+            IsRemovalConfirmed = false;
+
+            MalwareRemovalStatus =
+                result.Findings.Count == 0
+                    ? "Für dieses Scanergebnis sind "
+                      + "keine Originaldateien zu löschen."
+                    : "Funddateien müssen vor dem "
+                      + "Löschen erfolgreich in Quarantäne "
+                      + "gesichert werden.";
 
             QuarantineStatus =
                 result.Findings.Count == 0
@@ -577,6 +658,11 @@ public partial class MainViewModel : ViewModelBase
 
             OnPropertyChanged(
                 nameof(HasQuarantinableFindings));
+
+            OnPropertyChanged(
+                nameof(HasRemovableFindings));
+
+            RefreshVirusFindingsText();
         }
         catch (OperationCanceledException)
         {
@@ -638,6 +724,8 @@ public partial class MainViewModel : ViewModelBase
         }
 
         IsQuarantining = true;
+        IsRemovalConfirmationVisible = false;
+        IsRemovalConfirmed = false;
 
         long generation =
             ++_quarantineGeneration;
@@ -734,6 +822,15 @@ public partial class MainViewModel : ViewModelBase
                     "\n\n",
                     statusParts);
 
+            MalwareRemovalStatus =
+                RemovableItems().Count > 0
+                    ? $"{FormatOriginalFileCount(
+                        RemovableItems().Count)} können nach "
+                      + "erneuter Sicherheitsprüfung zum "
+                      + "Löschen vorbereitet werden."
+                    : "Es steht keine erfolgreich gesicherte "
+                      + "Originaldatei zum Löschen bereit.";
+
             if (result.WasCanceled)
             {
                 StatusMessage =
@@ -762,6 +859,11 @@ public partial class MainViewModel : ViewModelBase
 
             OnPropertyChanged(
                 nameof(HasQuarantinableFindings));
+
+            OnPropertyChanged(
+                nameof(HasRemovableFindings));
+
+            RefreshVirusFindingsText();
         }
         catch (OperationCanceledException)
         {
@@ -789,6 +891,232 @@ public partial class MainViewModel : ViewModelBase
             _quarantineGeneration++;
             UpdatePendingCleanup();
             IsQuarantining = false;
+        }
+    }
+
+    [RelayCommand(
+        CanExecute = nameof(CanPrepareRemoval))]
+    private void PrepareRemoval()
+    {
+        if (!CanPrepareRemoval()
+            || SelectedDevice
+            is not { } selectedDevice)
+        {
+            return;
+        }
+
+        IReadOnlyList<QuarantineItemResult> items =
+            RemovableItems();
+
+        IsRemovalConfirmed = false;
+        IsRemovalConfirmationVisible = true;
+
+        MalwareRemovalConfirmationText =
+            $"{FormatOriginalFileCount(items.Count)} "
+            + $"werden dauerhaft von {selectedDevice.DevicePath} gelöscht. "
+            + "Vorher werden die verschlüsselten Quarantänekopien und die "
+            + "SHA-256-Prüfsummen der Originaldateien erneut vollständig geprüft. "
+            + "Die Quarantänekopien bleiben erhalten.";
+
+        MalwareRemovalStatus =
+            "Die Löschung wartet auf die ausdrückliche Bestätigung.";
+    }
+
+    [RelayCommand(
+        CanExecute = nameof(CanCancelRemovalConfirmation))]
+    private void CancelRemovalConfirmation()
+    {
+        if (!CanCancelRemovalConfirmation())
+        {
+            return;
+        }
+
+        IsRemovalConfirmed = false;
+        IsRemovalConfirmationVisible = false;
+        MalwareRemovalConfirmationText = string.Empty;
+        MalwareRemovalStatus =
+            "Die Löschung wurde nicht gestartet.";
+    }
+
+    [RelayCommand(
+        CanExecute = nameof(CanRemoveFindings),
+        IncludeCancelCommand = true)]
+    private async Task RemoveFindingsAsync(
+        CancellationToken cancellationToken)
+    {
+        if (!CanRemoveFindings()
+            || SelectedDevice
+            is not { } selectedDevice)
+        {
+            return;
+        }
+
+        IReadOnlyList<QuarantineItemResult> items =
+            RemovableItems();
+
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        IsRemovingFindings = true;
+
+        long generation =
+            ++_removalGeneration;
+
+        MalwareRemovalStatus =
+            "Quarantänekopien und Originaldateien "
+            + "werden vorbereitet …";
+
+        StatusMessage =
+            MalwareRemovalStatus;
+
+        var progress =
+            new Progress<string>(
+                message =>
+                {
+                    if (!IsRemovingFindings
+                        || generation
+                        != _removalGeneration)
+                    {
+                        return;
+                    }
+
+                    MalwareRemovalStatus =
+                        message;
+
+                    StatusMessage =
+                        message;
+                });
+
+        try
+        {
+            MalwareRemovalResult result =
+                await _malwareRemovalService
+                    .RemoveAsync(
+                        selectedDevice.Device,
+                        items,
+                        progress,
+                        cancellationToken);
+
+            _removalGeneration++;
+
+            foreach (MalwareRemovalItemResult item
+                     in result.Items.Where(
+                         item => item.WasDeleted))
+            {
+                _removedOriginalFiles.Add(
+                    item.OriginalFilePath);
+            }
+
+            int deletedCount =
+                result.Items.Count(
+                    item => item.WasDeleted);
+
+            var statusParts =
+                new List<string>();
+
+            if (deletedCount > 0)
+            {
+                statusParts.Add(
+                    $"{FormatOriginalFileCount(deletedCount)} "
+                    + (deletedCount == 1 ? "wurde" : "wurden")
+                    + " dauerhaft vom USB-Gerät gelöscht.");
+
+                statusParts.Add(
+                    "Die verschlüsselten "
+                    + "Quarantänekopien bleiben erhalten.");
+            }
+            else
+            {
+                statusParts.Add(
+                    "Es wurde keine Originaldatei gelöscht.");
+            }
+
+            if (result.Errors.Count > 0)
+            {
+                statusParts.Add(
+                    "Fehler:\n"
+                    + string.Join(
+                        "\n",
+                        result.Errors));
+            }
+
+            if (result.Warnings.Count > 0)
+            {
+                statusParts.Add(
+                    "Warnungen:\n"
+                    + string.Join(
+                        "\n",
+                        result.Warnings));
+            }
+
+            MalwareRemovalStatus =
+                string.Join(
+                    "\n\n",
+                    statusParts);
+
+            if (result.WasCanceled)
+            {
+                StatusMessage =
+                    "Die Löschoperation wurde abgebrochen.";
+            }
+            else if (result.Errors.Count > 0)
+            {
+                StatusMessage =
+                    "Die Löschoperation wurde "
+                    + "mit Fehlern beendet.";
+            }
+            else if (deletedCount == 1)
+            {
+                StatusMessage =
+                    "Eine bestätigte Originaldatei "
+                    + "wurde gelöscht.";
+            }
+            else
+            {
+                StatusMessage =
+                    $"{deletedCount} bestätigte "
+                    + "Originaldateien wurden gelöscht.";
+            }
+
+            IsRemovalConfirmed = false;
+            IsRemovalConfirmationVisible = false;
+            MalwareRemovalConfirmationText = string.Empty;
+
+            OnPropertyChanged(
+                nameof(HasRemovableFindings));
+
+            RefreshVirusFindingsText();
+        }
+        catch (OperationCanceledException)
+        {
+            IsRemovalConfirmed = false;
+
+            MalwareRemovalStatus =
+                "Die Löschoperation wurde abgebrochen. "
+                + "Der angezeigte Dateistatus muss vor "
+                + "einem weiteren Versuch beachtet werden.";
+
+            StatusMessage =
+                "Die Löschoperation wurde abgebrochen.";
+        }
+        catch (Exception exception)
+        {
+            IsRemovalConfirmed = false;
+
+            MalwareRemovalStatus =
+                "Die Löschoperation ist fehlgeschlagen:\n"
+                + exception.Message;
+
+            StatusMessage =
+                "Die Löschoperation ist fehlgeschlagen.";
+        }
+        finally
+        {
+            _removalGeneration++;
+            UpdatePendingCleanup();
+            IsRemovingFindings = false;
         }
     }
 
@@ -831,6 +1159,17 @@ public partial class MainViewModel : ViewModelBase
 
                 messages.AddRange(
                     quarantineCleanup.Messages);
+            }
+
+            if (_malwareRemovalService.HasPendingMounts)
+            {
+                VirusScanCleanupResult
+                    removalCleanup =
+                        await _malwareRemovalService
+                            .RetryCleanupAsync();
+
+                messages.AddRange(
+                    removalCleanup.Messages);
             }
 
             UpdatePendingCleanup();
@@ -906,6 +1245,18 @@ public partial class MainViewModel : ViewModelBase
             return false;
         }
 
+        if (IsRemovingFindings)
+        {
+            RemoveFindingsCommand.Cancel();
+
+            StatusMessage =
+                "Abbruch angefordert. Bereits bestätigte "
+                + "Löschungen und das Aufräumen müssen "
+                + "zuerst abgeschlossen werden.";
+
+            return false;
+        }
+
         if (IsCleaningUp || HasPendingCleanup)
         {
             StatusMessage =
@@ -943,12 +1294,28 @@ public partial class MainViewModel : ViewModelBase
             "Noch keine Funddatei "
             + "in Quarantäne gesichert.";
 
+        MalwareRemovalStatus =
+            "Noch keine Originaldatei gelöscht.";
+
+        MalwareRemovalConfirmationText =
+            string.Empty;
+
+        IsRemovalConfirmationVisible =
+            false;
+
+        IsRemovalConfirmed =
+            false;
+
         _lastVirusScanResult = null;
         _lastVirusScanDevice = null;
         _quarantinedItems.Clear();
+        _removedOriginalFiles.Clear();
 
         OnPropertyChanged(
             nameof(HasQuarantinableFindings));
+
+        OnPropertyChanged(
+            nameof(HasRemovableFindings));
     }
 
     private bool CanRefreshDevices()
@@ -981,6 +1348,41 @@ public partial class MainViewModel : ViewModelBase
                && RemainingFindings().Count > 0;
     }
 
+    private bool CanPrepareRemoval()
+    {
+        return CanSelectDevice
+               && !IsRemovalConfirmationVisible
+               && SelectedDevice
+               is { } selected
+               && _lastVirusScanDevice
+               is not null
+               && ReferenceEquals(
+                   selected.Device,
+                   _lastVirusScanDevice)
+               && RemovableItems().Count > 0;
+    }
+
+    private bool CanCancelRemovalConfirmation()
+    {
+        return !IsBusy
+               && IsRemovalConfirmationVisible;
+    }
+
+    private bool CanRemoveFindings()
+    {
+        return CanSelectDevice
+               && IsRemovalConfirmationVisible
+               && IsRemovalConfirmed
+               && SelectedDevice
+               is { } selected
+               && _lastVirusScanDevice
+               is not null
+               && ReferenceEquals(
+                   selected.Device,
+                   _lastVirusScanDevice)
+               && RemovableItems().Count > 0;
+    }
+
     private IReadOnlyList<VirusFinding>
         RemainingFindings()
     {
@@ -994,11 +1396,86 @@ public partial class MainViewModel : ViewModelBase
                ?? [];
     }
 
+    private IReadOnlyList<QuarantineItemResult>
+        RemovableItems()
+    {
+        if (_lastVirusScanResult is null)
+        {
+            return [];
+        }
+
+        var result =
+            new List<QuarantineItemResult>();
+
+        foreach (string path in _lastVirusScanResult
+                     .Findings
+                     .Select(finding => finding.FilePath)
+                     .Distinct(StringComparer.Ordinal))
+        {
+            if (_removedOriginalFiles.Contains(path))
+            {
+                continue;
+            }
+
+            if (_quarantinedItems.TryGetValue(
+                    path,
+                    out QuarantineItemResult? item))
+            {
+                result.Add(item);
+            }
+        }
+
+        return result;
+    }
+
+    private void RefreshVirusFindingsText()
+    {
+        if (_lastVirusScanResult is null)
+        {
+            return;
+        }
+
+        if (_lastVirusScanResult.Findings.Count == 0)
+        {
+            VirusFindingsText =
+                "Keine Schadsoftware-Funde "
+                + "gemeldet. Scanstatus beachten.";
+
+            return;
+        }
+
+        VirusFindingsText =
+            string.Join(
+                "\n\n",
+                _lastVirusScanResult.Findings.Select(
+                    finding =>
+                    {
+                        string status =
+                            _removedOriginalFiles.Contains(
+                                finding.FilePath)
+                                ? "Originaldatei gelöscht; "
+                                  + "Quarantänekopie bleibt erhalten."
+                                : _quarantinedItems.ContainsKey(
+                                    finding.FilePath)
+                                    ? "Verschlüsselt in Quarantäne "
+                                      + "gesichert; Originaldatei wurde "
+                                      + "noch nicht durch die Anwendung gelöscht."
+                                    : "Noch nicht in Quarantäne gesichert.";
+
+                        return finding.FilePath
+                               + "\nSignatur: "
+                               + finding.Signature
+                               + "\nStatus: "
+                               + status;
+                    }));
+    }
+
     private void UpdatePendingCleanup()
     {
         HasPendingCleanup =
             _virusScanService.HasPendingMounts
-            || _quarantineService.HasPendingMounts;
+            || _quarantineService.HasPendingMounts
+            || _malwareRemovalService.HasPendingMounts;
     }
 
     private static string FormatFindingCount(
@@ -1007,6 +1484,14 @@ public partial class MainViewModel : ViewModelBase
         return count == 1
             ? "1 Funddatei"
             : $"{count} Funddateien";
+    }
+
+    private static string FormatOriginalFileCount(
+        int count)
+    {
+        return count == 1
+            ? "1 Originaldatei"
+            : $"{count} Originaldateien";
     }
 
     private bool CanCheckSmartHealth()
@@ -1059,6 +1544,24 @@ public partial class MainViewModel : ViewModelBase
         UpdateAvailability();
     }
 
+    partial void OnIsRemovingFindingsChanged(
+        bool value)
+    {
+        UpdateAvailability();
+    }
+
+    partial void OnIsRemovalConfirmationVisibleChanged(
+        bool value)
+    {
+        UpdateAvailability();
+    }
+
+    partial void OnIsRemovalConfirmedChanged(
+        bool value)
+    {
+        UpdateAvailability();
+    }
+
     partial void OnHasPendingCleanupChanged(
         bool value)
     {
@@ -1086,6 +1589,15 @@ public partial class MainViewModel : ViewModelBase
             .NotifyCanExecuteChanged();
 
         QuarantineFindingsCommand
+            .NotifyCanExecuteChanged();
+
+        PrepareRemovalCommand
+            .NotifyCanExecuteChanged();
+
+        CancelRemovalConfirmationCommand
+            .NotifyCanExecuteChanged();
+
+        RemoveFindingsCommand
             .NotifyCanExecuteChanged();
 
         RetryCleanupCommand
